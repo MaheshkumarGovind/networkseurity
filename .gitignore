@@ -1,1 +1,65 @@
-venv
+notepad .gitignore
+```
+
+**Delete everything** and paste this complete `.gitignore`:
+```
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.pyc
+
+# Virtual Environment
+venv/
+env/
+python==3.10/
+ENV/
+
+# Artifacts and Logs
+Artifacts/
+logs/
+*.log
+
+# Environment variables (IMPORTANT - contains sensitive data!)
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Debug and test files
+quick_debug.py
+test_*.py
+*_test.py
+
+# Model files (can be large)
+*.pkl
+*.h5
+*.model
+*.joblib
+
+# Data files (optional - uncomment if you don't want to commit data)
+# *.csv
+# *.json
+# *.parquet
+
+# MongoDB dumps
+dump/

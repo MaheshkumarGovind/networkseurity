@@ -1,0 +1,17 @@
+columns:
+  src_ip: object
+  dst_ip: object
+  protocol: object
+  label: int64
+  bytes: int64
+  packets: int64
+
+numerical_columns:
+  - label
+  - bytes
+  - packets
+
+categorical_columns:
+  - src_ip
+  - dst_ip
+  - protocol
