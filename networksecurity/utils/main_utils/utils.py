@@ -1,61 +1,107 @@
-"""
-YAML helpers that always resolve paths relative to the project root
-(the folder that contains main.py), so you never get
-  FileNotFoundError: [Errno 2] No such file or directory: data_schema\\schema.yaml
-again.
-"""
-import os
-import sys
-from pathlib import Path
 import yaml
 from networksecurity.exception.exception import NetworkSecurityException
+from networksecurity.logging.logger import logging
+import os,sys
+import numpy as np
+#import dill
+import pickle
 
-# ------------------------------------------------------------------
-# private helper – project root (where main.py lives)
-# ------------------------------------------------------------------
-def _project_root() -> Path:
-    """
-    This file is assumed to live in
-      <root>/networksecurity/utils/main_utils/utils.py
-    -> 3 parents up gives the project root.
-    """
-    return Path(__file__).resolve().parents[3]        # <-- absolute Path object
+from sklearn.metrics import r2_score
+from sklearn.model_selection import GridSearchCV
 
-# ------------------------------------------------------------------
-# read any YAML file (schema or anything else)
-# ------------------------------------------------------------------
-def read_yaml_file(file_path: str | os.PathLike) -> dict:
+def read_yaml_file(file_path: str) -> dict:
     try:
-        file_path = Path(file_path)
-        if not file_path.is_absolute():               # make it absolute
-            file_path = _project_root() / file_path
-
-        if not file_path.exists():
-            raise FileNotFoundError(
-                f"YAML file not found at: {file_path}"
-            )
-
-        with file_path.open("r", encoding="utf-8") as yf:
-            return yaml.safe_load(yf) or {}
+        with open(file_path, "rb") as yaml_file:
+            return yaml.safe_load(yaml_file)
     except Exception as e:
-        raise NetworkSecurityException(str(e), sys) from e
-
-# ------------------------------------------------------------------
-# write any YAML file (creates folders automatically)
-# ------------------------------------------------------------------
-def write_yaml_file(file_path: str | os.PathLike,
-                    content: dict,
-                    replace: bool = False) -> None:
+        raise NetworkSecurityException(e, sys) from e
+    
+def write_yaml_file(file_path: str, content: object, replace: bool = False) -> None:
     try:
-        file_path = Path(file_path)
-        if not file_path.is_absolute():
-            file_path = _project_root() / file_path
-
-        if replace and file_path.exists():
-            file_path.unlink()
-
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        with file_path.open("w", encoding="utf-8") as yf:
-            yaml.dump(content, yf, default_flow_style=False, sort_keys=False)
+        if replace:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w") as file:
+            yaml.dump(content, file)
     except Exception as e:
-        raise NetworkSecurityException(str(e), sys) from e
+        raise NetworkSecurityException(e, sys)
+    
+def save_numpy_array_data(file_path: str, array: np.array):
+    """
+    Save numpy array data to file
+    file_path: str location of file to save
+    array: np.array data to save
+    """
+    try:
+        dir_path = os.path.dirname(file_path)
+        os.makedirs(dir_path, exist_ok=True)
+        with open(file_path, "wb") as file_obj:
+            np.save(file_obj, array)
+    except Exception as e:
+        raise NetworkSecurityException(e, sys) from e
+    
+def save_object(file_path: str, obj: object) -> None:
+    try:
+        logging.info("Entered the save_object method of MainUtils class")
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "wb") as file_obj:
+            pickle.dump(obj, file_obj)
+        logging.info("Exited the save_object method of MainUtils class")
+    except Exception as e:
+        raise NetworkSecurityException(e, sys) from e
+    
+def load_object(file_path: str, ) -> object:
+    try:
+        if not os.path.exists(file_path):
+            raise Exception(f"The file: {file_path} is not exists")
+        with open(file_path, "rb") as file_obj:
+            print(file_obj)
+            return pickle.load(file_obj)
+    except Exception as e:
+        raise NetworkSecurityException(e, sys) from e
+    
+def load_numpy_array_data(file_path: str) -> np.array:
+    """
+    load numpy array data from file
+    file_path: str location of file to load
+    return: np.array data loaded
+    """
+    try:
+        with open(file_path, "rb") as file_obj:
+            return np.load(file_obj)
+    except Exception as e:
+        raise NetworkSecurityException(e, sys) from e
+    
+
+
+def evaluate_models(X_train, y_train,X_test,y_test,models,param):
+    try:
+        report = {}
+
+        for i in range(len(list(models))):
+            model = list(models.values())[i]
+            para=param[list(models.keys())[i]]
+
+            gs = GridSearchCV(model,para,cv=3)
+            gs.fit(X_train,y_train)
+
+            model.set_params(**gs.best_params_)
+            model.fit(X_train,y_train)
+
+            #model.fit(X_train, y_train)  # Train model
+
+            y_train_pred = model.predict(X_train)
+
+            y_test_pred = model.predict(X_test)
+
+            train_model_score = r2_score(y_train, y_train_pred)
+
+            test_model_score = r2_score(y_test, y_test_pred)
+
+            report[list(models.keys())[i]] = test_model_score
+
+        return report
+
+    except Exception as e:
+        raise NetworkSecurityException(e, sys)
