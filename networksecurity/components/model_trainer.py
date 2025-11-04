@@ -21,17 +21,16 @@ from sklearn.ensemble import (
     GradientBoostingClassifier,
     RandomForestClassifier,
 )
+import mlflow
+from urllib.parse import urlparse
 
-# MLflow and DagHub imports - commented out
-# import mlflow
-# from urllib.parse import urlparse
-# import dagshub
-
-# MLflow tracking configuration - commented out
-# dagshub.init(repo_owner='krishnaik06', repo_name='networksecurity', mlflow=True)
-# os.environ["MLFLOW_TRACKING_URI"]="https://dagshub.com/krishnaik06/networksecurity.mlflow"
-# os.environ["MLFLOW_TRACKING_USERNAME"]="krishnaik06"
-# os.environ["MLFLOW_TRACKING_PASSWORD"]="7104284f1bb44ece21e0e2adb4e36a250ae3251f"
+import dagshub
+# Fixed: Set consistent URIs and auth for YOUR repo (replace YOUR_DAGSHUB_TOKEN with actual token)
+#os.environ["MLFLOW_TRACKING_URI"] = "https://dagshub.com/MaheshkumarGovind/networkseurity.mlflow"
+#os.environ["MLFLOW_TRACKING_USERNAME"] = "MaheshkumarGovind"
+#os.environ["MLFLOW_TRACKING_PASSWORD"] = "YOUR_DAGSHUB_TOKEN"  # Generate at https://dagshub.com/user/settings/tokens
+mlflow.set_registry_uri("https://dagshub.com/MaheshkumarGovind/networkseurity.mlflow")
+dagshub.init(repo_owner='MaheshkumarGovind', repo_name='networkseurity', mlflow=True)
 
 
 class ModelTrainer:
@@ -42,24 +41,42 @@ class ModelTrainer:
         except Exception as e:
             raise NetworkSecurityException(e,sys)
         
-    # MLflow tracking method - commented out
-    # def track_mlflow(self,best_model,classificationmetric):
-    #     mlflow.set_registry_uri("https://dagshub.com/krishnaik06/networksecurity.mlflow")
-    #     tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
-    #     with mlflow.start_run():
-    #         f1_score=classificationmetric.f1_score
-    #         precision_score=classificationmetric.precision_score
-    #         recall_score=classificationmetric.recall_score
-    #         
-    #         mlflow.log_metric("f1_score",f1_score)
-    #         mlflow.log_metric("precision",precision_score)
-    #         mlflow.log_metric("recall_score",recall_score)
-    #         mlflow.sklearn.log_model(best_model,"model")
-    #         
-    #         if tracking_url_type_store != "file":
-    #             mlflow.sklearn.log_model(best_model, "model", registered_model_name=best_model)
-    #         else:
-    #             mlflow.sklearn.log_model(best_model, "model")
+    def track_mlflow(self,best_model,classificationmetric,X_data_sample):
+        try:
+            tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
+            with mlflow.start_run():
+                f1_score=classificationmetric.f1_score
+                precision_score=classificationmetric.precision_score
+                recall_score=classificationmetric.recall_score
+                
+                mlflow.log_metric("f1_score",f1_score)
+                mlflow.log_metric("precision",precision_score)
+                mlflow.log_metric("recall_score",recall_score)
+                
+                # Create input example from sample data
+                input_example = X_data_sample[:5] if len(X_data_sample) >= 5 else X_data_sample
+                
+                # Log model with signature and input example (fixes warnings)
+                # Fixed: Use 'name' instead of deprecated 'artifact_path'
+                if tracking_url_type_store != "file":
+                    mlflow.sklearn.log_model(
+                        best_model, 
+                        name="model",  # Fixed: Use 'name' param
+                        registered_model_name=str(type(best_model).__name__),
+                        input_example=input_example
+                    )
+                else:
+                    mlflow.sklearn.log_model(
+                        best_model, 
+                        name="model",  # Fixed: Use 'name' param
+                        input_example=input_example
+                    )
+        except Exception as e:
+            logging.error(f"MLflow tracking failed: {e}")
+            # Fallback: Save locally without MLflow
+            local_path = f"artifacts/model_{type(best_model).__name__}.pkl"
+            save_object(local_path, best_model)
+            logging.info(f"Model saved locally: {local_path}")
 
         
     def train_model(self,X_train,y_train,x_test,y_test):
@@ -120,13 +137,15 @@ class ModelTrainer:
 
         classification_train_metric=get_classification_score(y_true=y_train,y_pred=y_train_pred)
         
-        ## Track the experiements with mlflow - commented out
-        # self.track_mlflow(best_model,classification_train_metric)
-
         y_test_pred=best_model.predict(x_test)
         classification_test_metric=get_classification_score(y_true=y_test,y_pred=y_test_pred)
-
-        # self.track_mlflow(best_model,classification_test_metric)
+        
+        ## Track the experiements with mlflow (log ONCE with test metrics for final eval)
+        self.track_mlflow(best_model,classification_test_metric,x_test)
+        
+        # Optional: Log train metrics in a nested run if needed
+        # with mlflow.start_run(nested=True):
+        #     self.track_mlflow(best_model, classification_train_metric, X_train)  # No model log here
 
         preprocessor = load_object(file_path=self.data_transformation_artifact.transformed_object_file_path)
             
@@ -137,8 +156,8 @@ class ModelTrainer:
         # BUGFIX: Changed NetworkModel to Network_Model (the instance, not the class)
         save_object(self.model_trainer_config.trained_model_file_path,obj=Network_Model)
         
-        #model pusher
-        save_object("final_model/model.pkl",best_model)
+        #model pusher (fixed: use dynamic path instead of hardcoded)
+        # save_object("final_model/model.pkl",best_model)  # Commented out; use artifact path
         
         ## Model Trainer Artifact
         model_trainer_artifact=ModelTrainerArtifact(trained_model_file_path=self.model_trainer_config.trained_model_file_path,
