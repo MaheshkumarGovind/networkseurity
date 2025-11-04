@@ -1,3 +1,6 @@
+from networksecurity.exception.exception import NetworkSecurityException
+from networksecurity.logging.logger import logging
+
 import sys
 import os
 import numpy as np
@@ -66,22 +69,24 @@ class DataTransformation:
             train_df=DataTransformation.read_data(self.data_validation_artifact.valid_train_file_path)
             test_df=DataTransformation.read_data(self.data_validation_artifact.valid_test_file_path)
 
+            # Debug: Log columns and TARGET_COLUMN
+            logging.info(f"Train DF columns: {train_df.columns.tolist()}")
+            logging.info(f"Test DF columns: {test_df.columns.tolist()}")
+            logging.info(f"TARGET_COLUMN value: {TARGET_COLUMN}")
+
+            # Validate target column exists
+            if TARGET_COLUMN not in train_df.columns:
+                raise ValueError(f"Target column '{TARGET_COLUMN}' not found in train_df. Available: {train_df.columns.tolist()}. Fix constant or data schema.")
+            if TARGET_COLUMN not in test_df.columns:
+                raise ValueError(f"Target column '{TARGET_COLUMN}' not found in test_df. Available: {test_df.columns.tolist()}.")
+
             ## training dataframe
             input_feature_train_df=train_df.drop(columns=[TARGET_COLUMN],axis=1)
-            
-            # Keep only numerical columns for KNN imputation (exclude categorical IPs and protocol)
-            numerical_cols = ['bytes', 'packets']
-            input_feature_train_df = input_feature_train_df[numerical_cols]
-            
             target_feature_train_df = train_df[TARGET_COLUMN]
             target_feature_train_df = target_feature_train_df.replace(-1, 0)
 
             #testing dataframe
             input_feature_test_df = test_df.drop(columns=[TARGET_COLUMN], axis=1)
-            
-            # Keep only numerical columns for KNN imputation
-            input_feature_test_df = input_feature_test_df[numerical_cols]
-            
             target_feature_test_df = test_df[TARGET_COLUMN]
             target_feature_test_df = target_feature_test_df.replace(-1, 0)
 

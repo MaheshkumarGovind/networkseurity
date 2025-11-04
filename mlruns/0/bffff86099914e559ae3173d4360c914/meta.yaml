@@ -1,0 +1,14 @@
+artifact_uri: file:///D:/Networkseurity/mlruns/0/bffff86099914e559ae3173d4360c914/artifacts
+end_time: 1762097251963
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: bffff86099914e559ae3173d4360c914
+run_name: Gradient Boosting
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1762097248088
+status: 3
+tags: []
+user_id: DELL

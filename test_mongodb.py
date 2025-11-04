@@ -5,10 +5,13 @@ import logging
 
 load_dotenv()  # Loads .env
 uri = os.getenv("MONGO_DB_URL")
+if not uri:
+    raise ValueError("MONGO_DB_URL not found in .env file!")
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-print(f"Testing URI on mobile: {uri[:60]}...")  # Preview (redacted)
+print(f"Testing URI: {uri[:60]}...")  # Preview (redacted)
 
 try:
     client = MongoClient(
@@ -18,12 +21,12 @@ try:
     )
     # Ping test
     result = client.admin.command('ping')
-    logger.info("✅ Connected on mobile! Ping successful.")
+    logger.info("✅ Connected! Ping successful.")
     logger.info(f"Server version: {result.get('ok', 'N/A')}")
 
-    # Test your DB/collection (update if different)
-    db_name = "networksecurity"  # From your TrainingPipelineConfig
-    coll_name = "traffic_data"   # From config
+    # Use EXACT CASE from Atlas (uppercase here)
+    db_name = "MAHESH"  # Matches your existing DB
+    coll_name = "NetworkData"  # Matches pipeline expectation
     db = client[db_name]
     coll = db[coll_name]
     count = coll.count_documents({})
@@ -46,10 +49,10 @@ try:
         logger.info(f"Inserted {len(inserted.inserted_ids)} sample records!")
 
     client.close()
-    print("🎉 Success! Now run your pipeline: python main.py")
+    print("🎉 Success! Data ready in MAHESH.NetworkData. Now run: python main.py")
 except Exception as e:
     logger.error(f"❌ Failed: {e}")
     print("Troubleshoot:")
-    print("- Check Atlas IP whitelist (add mobile IP from whatismyip.com).")
-    print("- Verify replicaSet ID (recopy URI from Atlas).")
-    print("- Temp: Allow all IPs in Atlas Network Access (0.0.0.0/0).")
+    print("- Verify exact DB name case in Atlas (Browse Collections sidebar).")
+    print("- If mismatch persists, drop/recreate DB with correct case (Atlas > ... > Drop Database).")
+    print("- Ensure pymongo and python-dotenv are installed: pip install pymongo python-dotenv")
